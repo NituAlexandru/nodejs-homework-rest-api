@@ -1,19 +1,50 @@
-// const fs = require('fs/promises')
+import contacts from "./contacts.json" assert { type: "json" };
 
-const listContacts = async () => {}
+import crypto from "crypto";
 
-const getContactById = async (contactId) => {}
-
-const removeContact = async (contactId) => {}
-
-const addContact = async (body) => {}
-
-const updateContact = async (contactId, body) => {}
-
-module.exports = {
+const contactsService = {
   listContacts,
   getContactById,
-  removeContact,
   addContact,
+  removeContact,
   updateContact,
+};
+
+export default contactsService;
+
+export async function listContacts() {
+  return contacts;
+}
+
+export async function getContactById(id) {
+  return contacts.find((el) => el.id === id);
+}
+
+export async function addContact(body) {
+  const newContact = {
+    id: crypto.randomUUID(), // Generează un ID unic pentru fiecare contact nou
+    ...body,
+  };
+  contacts.push(newContact);
+  return newContact;
+}
+
+// Ștergerea unui contact
+export async function removeContact(contactId) {
+  const index = contacts.findIndex((c) => c.id === contactId);
+  if (index !== -1) {
+    return contacts.splice(index, 1)[0];
+  }
+  return null;
+}
+
+// Actualizarea unui contact
+export async function updateContact(contactId, body) {
+  const index = contacts.findIndex((c) => c.id === contactId);
+  if (index !== -1) {
+    const updatedContact = { ...contacts[index], ...body };
+    contacts[index] = updatedContact;
+    return updatedContact;
+  }
+  return null;
 }
