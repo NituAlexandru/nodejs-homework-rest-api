@@ -4,6 +4,7 @@ import cors from "cors";
 import contactsRouter from "./routes/api/contacts.js";
 import usersRouter from "./routes/api/users.js";
 import connectToDb from "./utils/connectToDb.js";
+import path from "path";
 
 const app = express();
 
@@ -15,6 +16,10 @@ app.use(logger(formatsLogger));
 app.use(cors());
 app.use(express.json());
 
+// Configurează folderul public
+const __dirname = path.resolve();
+
+app.use("/public", express.static(path.join(__dirname, "public")));
 app.use("/api/contacts", contactsRouter);
 app.use("/api/users", usersRouter);
 
