@@ -11,10 +11,9 @@ const contactsController = {
 
 export default contactsController;
 
-export async function listContacts() {
+export async function listContacts(query) {
   try {
-    const result = await Contact.find();
-    return result;
+    return await Contact.find(query);
   } catch (error) {
     console.error(error);
     throw error;

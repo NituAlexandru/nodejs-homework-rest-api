@@ -1,6 +1,7 @@
 import express from "express";
 import contactsController from "../../controller/contactsController.js";
 import Joi from "joi";
+import auth from "../../middlewares/auth.js";
 
 const contactSchema = Joi.object({
   name: Joi.string().min(3).required(),
@@ -24,19 +25,22 @@ const STATUS_CODES = {
 };
 
 // GET localhost:3000/api/contacts
-router.get("/", async (req, res) => {
+router.get("/", auth, async (req, res) => {
   try {
-    const contacts = await contactsController.listContacts();
-    res
-      .status(STATUS_CODES.success)
-      .json({ message: "Lista a fost returnata cu succes", data: contacts });
+    const query = { owner: req.user._id };
+
+    const contacts = await contactsController.listContacts(query);
+
+    res.status(STATUS_CODES.success).json({
+      contacts,
+    });
   } catch (error) {
     res.status(STATUS_CODES.error).json({ message: `${error}` });
   }
 });
 
 // GET localhost:3000/api/contacts/:id
-router.get("/:id", async (req, res) => {
+router.get("/:id", auth, async (req, res) => {
   try {
     const contact = await contactsController.getContactById(req.params.id);
     if (!contact) {
@@ -54,13 +58,16 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST localhost:3000/api/contacts/
-router.post("/", async (req, res) => {
+router.post("/", auth, async (req, res) => {
   try {
     const { error, value } = contactSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ message: error.details[0].message });
     }
-    const newContact = await contactsController.addContact(value);
+    const newContact = await contactsController.addContact({
+      ...value,
+      owner: req.user._id,
+    });
     res.status(STATUS_CODES.created).json(newContact);
   } catch (error) {
     res
@@ -70,7 +77,7 @@ router.post("/", async (req, res) => {
 });
 
 // DELETE localhost:3000/api/contacts/:id
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", auth, async (req, res) => {
   try {
     const contact = await contactsController.removeContact(req.params.id);
     if (!contact) {
@@ -85,7 +92,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 // PUT localhost:3000/api/contacts/:id
-router.put("/:id", async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   try {
     const { error, value } = contactSchema.validate(req.body, {
       presence: "optional",
@@ -111,7 +118,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // PATCH localhost:3000/api/contacts/:id/favorite
-router.patch("/:id/favorite", async (req, res) => {
+router.patch("/:id/favorite", auth, async (req, res) => {
   try {
     const { error, value } = favoriteSchema.validate(req.body);
     if (error) {
