@@ -9,6 +9,8 @@ import multer from "multer";
 import jimp from "jimp";
 import User from "../../models/user.js";
 import auth from "../../middlewares/auth.js";
+import { sendEmail } from "../../utils/sendEmail.js";
+import { v4 as uuidv4 } from "uuid";
 
 const router = express.Router();
 
@@ -38,12 +40,20 @@ router.post("/signup", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const avatarURL = gravatar.url(email, { s: "250", d: "retro" }, true);
+    const verificationToken = uuidv4();
 
     const newUser = await User.create({
       email,
       password: hashedPassword,
       avatarURL,
+      verificationToken,
+      verify: false,
     });
+
+    const verifyLink = `http://localhost:3000/api/users/verify/${verificationToken}`;
+    const html = `<a href="${verifyLink}">Click here to verify your email</a>`;
+
+    await sendEmail(email, "Verify your email", html);
 
     res.status(201).json({
       user: {
@@ -108,8 +118,6 @@ router.get("/current", auth, (req, res) => {
   res.status(200).json({ email, subscription, avatarURL });
 });
 
-// Actualizare avatar
-
 const uploadDir = path.join(process.cwd(), "tmp");
 const avatarsDir = path.join(process.cwd(), "public", "avatars");
 
@@ -148,6 +156,57 @@ router.patch("/avatars", auth, upload.single("avatar"), async (req, res) => {
     await req.user.save();
 
     res.json({ avatarURL });
+  } catch (error) {
+    res.status(500).json({ message: `Server error: ${error.message}` });
+  }
+});
+
+// Endpoint pentru verificare
+router.get("/verify/:verificationToken", async (req, res) => {
+  try {
+    const { verificationToken } = req.params;
+    const user = await User.findOne({ verificationToken });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.verificationToken = null;
+    user.verify = true;
+    await user.save();
+
+    res.status(200).json({ message: "Verification successful" });
+  } catch (error) {
+    res.status(500).json({ message: `Server error: ${error.message}` });
+  }
+});
+
+router.post("/verify", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "missing required field email" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.verify) {
+      return res
+        .status(400)
+        .json({ message: "Verification has already been passed" });
+    }
+
+    const verifyLink = `http://localhost:3000/api/users/verify/${user.verificationToken}`;
+    const html = `<a href="${verifyLink}">Click here to verify your email</a>`;
+
+    await sendEmail(email, "Verify your email", html);
+
+    res.status(200).json({ message: "Verification email sent" });
   } catch (error) {
     res.status(500).json({ message: `Server error: ${error.message}` });
   }
